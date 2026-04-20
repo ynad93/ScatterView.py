@@ -121,6 +121,11 @@ class CameraController:
         self._free_zoom = False
         self._free_zoom_callbacks: list = []
 
+        # Mode the camera was in before WASD forced it into MANUAL — used
+        # to restore the prior tracking mode when the user disables free
+        # zoom. None when MANUAL wasn't entered via the WASD shortcut.
+        self._pre_manual_mode: CameraMode | None = None
+
         # Camera state — initialized from VisPy camera's current position
         cam_center = self._camera.center
         self._smoothed_center = np.array(cam_center, dtype=np.float64) if cam_center else np.zeros(3)
@@ -136,6 +141,10 @@ class CameraController:
     @mode.setter
     def mode(self, value: CameraMode) -> None:
         self._mode = value
+        # Any move away from MANUAL invalidates the stashed pre-manual
+        # mode (the user picked a new mode explicitly).
+        if value != CameraMode.MANUAL:
+            self._pre_manual_mode = None
         self._camera.view_changed()
 
     @property

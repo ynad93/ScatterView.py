@@ -860,6 +860,24 @@ class ControlPanel:
             self._free_zoom_cb.blockSignals(False)
         self._manual_speed_container.setVisible(value)
 
+        # Disabling free zoom reverts the WASD-forced MANUAL switch:
+        # restore whatever mode the camera was in before the keyboard
+        # pan took over. _pre_manual_mode is only set by that specific
+        # path, so explicit "Manual" selections won't auto-revert.
+        if not value:
+            from ..core.camera import CameraMode
+            prev = self._camera._pre_manual_mode
+            if self._camera.mode == CameraMode.MANUAL and prev is not None:
+                self._camera.mode = prev  # setter also clears _pre_manual_mode
+                prev_text = next(
+                    (n for n, m in self._camera_mode_names.items() if m == prev),
+                    None,
+                )
+                if prev_text is not None:
+                    self._mode_combo.blockSignals(True)
+                    self._mode_combo.setCurrentText(prev_text)
+                    self._mode_combo.blockSignals(False)
+
     def _make_particle_combo(self) -> "QtWidgets.QComboBox":
         """Create a searchable combo box with all particle IDs."""
         from PyQt6 import QtCore, QtWidgets
@@ -1233,6 +1251,21 @@ class ControlPanel:
             self._subview_free_zoom_cb.blockSignals(True)
             self._subview_free_zoom_cb.setChecked(value)
             self._subview_free_zoom_cb.blockSignals(False)
+
+        ctrl = self._engine._subview_camera_controller
+        if not value and ctrl is not None:
+            from ..core.camera import CameraMode
+            prev = ctrl._pre_manual_mode
+            if ctrl.mode == CameraMode.MANUAL and prev is not None:
+                ctrl.mode = prev
+                prev_text = next(
+                    (n for n, m in self._subview_mode_names.items() if m == prev),
+                    None,
+                )
+                if prev_text is not None:
+                    self._subview_mode_combo.blockSignals(True)
+                    self._subview_mode_combo.setCurrentText(prev_text)
+                    self._subview_mode_combo.blockSignals(False)
 
     def _set_subview_rotation_speed(self, value: float) -> None:
         ctrl = self._engine._subview_camera_controller

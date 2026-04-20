@@ -455,7 +455,9 @@ class RenderEngine:
             if not self._alt_held and self._camera_controller is not None:
                 from ..core.camera import CameraMode
                 if self._camera_controller.mode != CameraMode.MANUAL:
+                    prev_mode = self._camera_controller.mode
                     self._camera_controller.mode = CameraMode.MANUAL
+                    self._camera_controller._pre_manual_mode = prev_mode
                     for cb in self._manual_mode_callbacks:
                         cb()
                 if not self._camera_controller.free_zoom:
