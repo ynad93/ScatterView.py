@@ -13,7 +13,7 @@ ANIM_SPEED = 0.01              # fraction of total sim duration advanced per sec
 # --- Appearance ---
 POINT_ALPHA = 1.0              # particle opacity (0 = invisible, 1 = opaque)
 TRAIL_ALPHA = 0.85             # peak trail opacity (at the head / newest point)
-TRAIL_LENGTH_FRAC = 0.005      # trail window as fraction of total simulation time
+TRAIL_LENGTH_FRAC = 0.01      # trail window as fraction of total simulation time
 
 # --- Particle sizing ---
 RELATIVE_SIZE_MIN_PX = 3.0     # smallest particle in relative mode (screen pixels);
