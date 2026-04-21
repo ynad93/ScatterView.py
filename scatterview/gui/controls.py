@@ -1386,6 +1386,7 @@ class ControlPanel:
         }
         for label in self._codec_map:
             self._codec_combo.addItem(label)
+        self._codec_combo.setCurrentText("h264_nvenc (NVIDIA GPU)")
         self._codec_combo.setToolTip(
             "Video encoder. NVENC uses the NVIDIA GPU and is typically\n"
             "several times faster than libx264. Falls back to libx264 if\n"
@@ -1400,7 +1401,7 @@ class ControlPanel:
         self._quality_combo = QtWidgets.QComboBox()
         for label in ("Fast", "Balanced", "Quality"):
             self._quality_combo.addItem(label)
-        self._quality_combo.setCurrentText("Balanced")
+        self._quality_combo.setCurrentText("Quality")
         self._quality_combo.setToolTip(
             "Trade off encode speed vs. file size / visual fidelity."
         )

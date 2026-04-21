@@ -144,6 +144,20 @@ def _assemble_trails(
 
 
 
+def _controller_updates_zoom(controller) -> bool:
+    """Whether this camera controller writes into its zoom ring buffer.
+
+    Free-zoom and pure MANUAL (without auto-rotate) skip the ring, so
+    there's no equilibrium to settle toward on pause.
+    """
+    from ..core.camera import CameraMode
+    if controller.free_zoom:
+        return False
+    if controller.mode == CameraMode.MANUAL and not controller.auto_rotate:
+        return False
+    return True
+
+
 class RenderEngine:
     """Manages the VisPy canvas, particle and trail rendering, camera, and animation."""
 
@@ -173,6 +187,13 @@ class RenderEngine:
         self._anim_time = 0.0
         self._anim_speed = D.ANIM_SPEED
         self._current_sim_time = data.times[0]
+
+        # Pause-settle frames remaining: after pause, keep requesting
+        # redraws (without advancing sim_time) so the camera's rolling
+        # zoom average converges to the frozen framing radius.  Without
+        # this, rotating the camera while paused would keep pushing
+        # samples into the ring buffer and drift the smoothed zoom.
+        self._pause_settle_remaining = 0
 
         # Appearance
         self._point_alpha = D.POINT_ALPHA
@@ -1034,8 +1055,13 @@ class RenderEngine:
                 self._trail_ei[:] = -1
             self._current_sim_time = self._t_min + self._anim_time * self._time_range
 
-        if not self._playing and not self._pan_keys_held:
+        if (not self._playing
+                and not self._pan_keys_held
+                and self._pause_settle_remaining <= 0):
             return
+
+        if not self._playing and self._pause_settle_remaining > 0:
+            self._pause_settle_remaining -= 1
 
         self._apply_keyboard_pan()
         self._apply_keyboard_rotate()
@@ -1139,10 +1165,25 @@ class RenderEngine:
 
     def play(self) -> None:
         self._playing = True
+        self._pause_settle_remaining = 0
         self._timer.start()
 
     def pause(self) -> None:
         self._playing = False
+        # Drive the zoom rolling average to equilibrium before idling so
+        # later rotations don't push the smoothed distance around.
+        # Only meaningful for controllers that actually write into the
+        # ring buffer — free_zoom and MANUAL (without auto-rotate) skip
+        # it, so settling there would just burn frames for no effect.
+        frames = 0
+        for ctrl, enabled in (
+            (self._camera_controller, True),
+            (self._subview_camera_controller, self._subview_enabled),
+        ):
+            if ctrl is None or not enabled or not _controller_updates_zoom(ctrl):
+                continue
+            frames = max(frames, ctrl.zoom_memory_frames)
+        self._pause_settle_remaining = frames
 
     def toggle_play(self) -> None:
         if self._playing:
@@ -1783,18 +1824,16 @@ class RenderEngine:
                 if codec_options:
                     s.options = dict(codec_options)
             s.width, s.height = w, h
-            # Encode directly in RGB (planar GBR) instead of going through
-            # YUV.  libx264 supports ``gbrp`` in the High 4:4:4 Predictive
-            # profile and skips the lossy RGB→YUV colour-matrix step entirely,
-            # so output colours match what the GUI draws pixel-for-pixel.
-            # NVENC codecs don't support gbrp — fall back to full-range YUV 4:4:4.
-            if s.codec.name == "libx264":
-                s.pix_fmt = "gbrp"
-            else:
-                s.pix_fmt = "yuv444p"
-                cc = s.codec_context
-                cc.color_range = av.video.reformatter.ColorRange.JPEG
-                cc.colorspace = av.video.reformatter.Colorspace.ITU709
+            # YUV 4:4:4 with full JPEG range and BT.709 primaries: no
+            # chroma subsampling and no range compression, so colours
+            # round-trip within a quantization step of what the GUI
+            # draws.  (An earlier version used planar ``gbrp`` to skip
+            # the RGB→YUV matrix entirely, but libx264 builds without
+            # 4:4:4 profile support reject it at codec_open.)
+            s.pix_fmt = "yuv444p"
+            cc = s.codec_context
+            cc.color_range = av.video.reformatter.ColorRange.JPEG
+            cc.colorspace = av.video.reformatter.Colorspace.ITU709
             return s
 
         def _encoder_worker():
@@ -1807,6 +1846,17 @@ class RenderEngine:
                     if stream is None:
                         stream = _make_stream(img)
                     vf = av.VideoFrame.from_ndarray(img[..., :3], format="rgb24")
+                    # Explicit full-range BT.709 reformat.  Without this,
+                    # libswscale's implicit RGB→YUV defaults to limited
+                    # range ([16,235]) and the GUI's pure white (255)
+                    # decodes as 235 — visibly washed out.  Setting the
+                    # codec_context fields alone only writes metadata;
+                    # the pixel values must be reformatted too.
+                    vf = vf.reformat(
+                        format=stream.pix_fmt,
+                        dst_colorspace=av.video.reformatter.Colorspace.ITU709,
+                        dst_color_range=av.video.reformatter.ColorRange.JPEG,
+                    )
                     for packet in stream.encode(vf):
                         container.mux(packet)
                 if stream is not None:
@@ -1844,8 +1894,12 @@ class RenderEngine:
                     elif (i + 1) % (n_frames // 10 or 1) == 0:
                         print(f"Rendering: {(i + 1) / n_frames * 100:.0f}%")
         finally:
-            # Signal the worker to flush and exit, then wait for it.
-            frame_q.put(None)
+            # Signal the worker to flush and exit.  If it already died
+            # (encoder failure, cancellation drain) the queue may still
+            # hold a leftover frame that nobody will consume — skip the
+            # sentinel in that case so the put can't deadlock.
+            if worker.is_alive():
+                frame_q.put(None)
             worker.join()
             container.close()
             native.setUpdatesEnabled(True)
