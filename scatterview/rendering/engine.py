@@ -144,20 +144,6 @@ def _assemble_trails(
 
 
 
-def _controller_updates_zoom(controller) -> bool:
-    """Whether this camera controller writes into its zoom ring buffer.
-
-    Free-zoom and pure MANUAL (without auto-rotate) skip the ring, so
-    there's no equilibrium to settle toward on pause.
-    """
-    from ..core.camera import CameraMode
-    if controller.free_zoom:
-        return False
-    if controller.mode == CameraMode.MANUAL and not controller.auto_rotate:
-        return False
-    return True
-
-
 class RenderEngine:
     """Manages the VisPy canvas, particle and trail rendering, camera, and animation."""
 
@@ -187,13 +173,6 @@ class RenderEngine:
         self._anim_time = 0.0
         self._anim_speed = D.ANIM_SPEED
         self._current_sim_time = data.times[0]
-
-        # Pause-settle frames remaining: after pause, keep requesting
-        # redraws (without advancing sim_time) so the camera's rolling
-        # zoom average converges to the frozen framing radius.  Without
-        # this, rotating the camera while paused would keep pushing
-        # samples into the ring buffer and drift the smoothed zoom.
-        self._pause_settle_remaining = 0
 
         # Appearance
         self._point_alpha = D.POINT_ALPHA
@@ -329,11 +308,7 @@ class RenderEngine:
         self._canvas.events.resize.connect(self._on_canvas_resize)
 
         # _update_frame runs on the draw event (i.e. whenever the canvas
-        # is asked to repaint).  The timer requests repaints while
-        # playing; user-facing state changes request repaints via
-        # canvas.update() (directly or through VisPy visual updates).
-        # When paused and nothing has changed, no paints are scheduled
-        # and Qt's main thread is free for GUI interaction.
+        # is asked to repaint).  The timer requests a repaint every tick.
         self._canvas.events.draw.connect(self._on_draw)
 
         # Keyboard pan/rotate: track which keys are held for smooth continuous movement
@@ -1039,9 +1014,7 @@ class RenderEngine:
 
         The timer owns time-advance and held-key processing only.  The
         heavy per-frame work (spline eval, GPU upload, lighting) runs
-        in _on_draw, triggered by canvas.update() below.  When paused
-        with no keys held we request no repaint at all — Qt's main
-        thread stays free for GUI interaction.
+        in _on_draw, triggered by canvas.update() below.
 
         Args:
             event: VisPy timer event with `dt` attribute.
@@ -1054,14 +1027,6 @@ class RenderEngine:
                 self._trail_si[:] = -1
                 self._trail_ei[:] = -1
             self._current_sim_time = self._t_min + self._anim_time * self._time_range
-
-        if (not self._playing
-                and not self._pan_keys_held
-                and self._pause_settle_remaining <= 0):
-            return
-
-        if not self._playing and self._pause_settle_remaining > 0:
-            self._pause_settle_remaining -= 1
 
         self._apply_keyboard_pan()
         self._apply_keyboard_rotate()
@@ -1165,25 +1130,10 @@ class RenderEngine:
 
     def play(self) -> None:
         self._playing = True
-        self._pause_settle_remaining = 0
         self._timer.start()
 
     def pause(self) -> None:
         self._playing = False
-        # Drive the zoom rolling average to equilibrium before idling so
-        # later rotations don't push the smoothed distance around.
-        # Only meaningful for controllers that actually write into the
-        # ring buffer — free_zoom and MANUAL (without auto-rotate) skip
-        # it, so settling there would just burn frames for no effect.
-        frames = 0
-        for ctrl, enabled in (
-            (self._camera_controller, True),
-            (self._subview_camera_controller, self._subview_enabled),
-        ):
-            if ctrl is None or not enabled or not _controller_updates_zoom(ctrl):
-                continue
-            frames = max(frames, ctrl.zoom_memory_frames)
-        self._pause_settle_remaining = frames
 
     def toggle_play(self) -> None:
         if self._playing:
