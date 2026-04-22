@@ -57,8 +57,20 @@ class ControlPanel:
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        # 3D viewport on the left (stretch factor 3)
+        # 3D viewport on the left (stretch factor 3).  The window's
+        # stylesheet targets ``QWidget`` with a background-color rule, which
+        # by default propagates to the embedded QOpenGLWidget and routes its
+        # painting through Qt's raster engine — Qt allocates a CPU backing
+        # store sized to the canvas, raster-paints the background each frame,
+        # and blits the GL framebuffer on top.  At default window size this
+        # is cheap; when maximized the per-pixel cost tanks the render loop.
+        # Break the inheritance on the canvas widget alone: no styled
+        # background, no auto-filled background, transparent widget-level
+        # stylesheet to override any cascaded rule.
         canvas_widget = engine.canvas.native
+        canvas_widget.setAttribute(QtCore.Qt.WidgetAttribute.WA_StyledBackground, False)
+        canvas_widget.setAutoFillBackground(False)
+        canvas_widget.setStyleSheet("background: transparent; border: none;")
         layout.addWidget(canvas_widget, stretch=3)
 
         # Control panel on the right (stretch factor 1)

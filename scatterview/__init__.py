@@ -16,6 +16,24 @@ if sys.platform.startswith("linux") and "QT_QPA_PLATFORM" not in os.environ:
         os.environ["QT_QPA_PLATFORM"] = "xcb"
 
 
+# Set GL swap interval to 0 on the default QSurfaceFormat before any
+# QApplication or GL context is created.  When the VisPy QOpenGLWidget
+# is embedded alongside other widgets (e.g. the ControlPanel), Qt's
+# compositor and the window system's compositor each wait for vsync —
+# two serial 60 Hz waits halves render rate to 30 FPS.  swapInterval=0
+# lets our side present immediately; the window system still paces the
+# final display so no tearing is introduced.
+def _set_qt_default_swap_interval_zero():
+    from PyQt6 import QtGui
+
+    fmt = QtGui.QSurfaceFormat.defaultFormat()
+    fmt.setSwapInterval(0)
+    QtGui.QSurfaceFormat.setDefaultFormat(fmt)
+
+
+_set_qt_default_swap_interval_zero()
+
+
 # Route VisPy's DPI query through Qt.  VisPy's Linux DPI probe shells
 # out to `xdpyinfo` / `xrandr`; on WSLg (and any headless/virtual X
 # display) xrandr reports a physical screen size of 0mm, so VisPy
