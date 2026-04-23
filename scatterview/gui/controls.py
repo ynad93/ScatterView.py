@@ -428,10 +428,17 @@ class ControlPanel:
 
         # Units
         section.addWidget(QtWidgets.QLabel("Units"))
-        self._time_unit_combo = self._add_unit_combo(
-            section, "Time", _D.TIME_UNITS, self._engine._time_unit,
-            lambda u: self._engine.set_units(time_unit=u),
+        row = QtWidgets.QHBoxLayout()
+        row.addWidget(QtWidgets.QLabel("Time"))
+        self._time_unit_combo = QtWidgets.QComboBox()
+        for u in _D.TIME_UNITS:
+            self._time_unit_combo.addItem(u)
+        self._time_unit_combo.setCurrentText(self._engine._time_unit)
+        self._time_unit_combo.currentTextChanged.connect(
+            lambda u: self._engine.set_units(time_unit=u)
         )
+        row.addWidget(self._time_unit_combo)
+        section.addLayout(row)
 
     def _build_background_controls(self) -> None:
         from PyQt6 import QtWidgets
@@ -612,32 +619,6 @@ class ControlPanel:
                     "is within this fraction of the screen from center.\n"
                     "Only affects panning, not zoom.",
         )
-
-    def _add_unit_combo(self, layout, label, choices, current, callback):
-        """Add a labelled combo box for unit selection.
-
-        Args:
-            layout: Parent QLayout to add the row to.
-            label: Text label shown to the left.
-            choices: List of unit strings to populate the combo box.
-            current: Initially selected unit string.
-            callback: Called with the new unit string when selection changes.
-
-        Returns:
-            The QComboBox widget.
-        """
-        from PyQt6 import QtWidgets
-
-        row = QtWidgets.QHBoxLayout()
-        row.addWidget(QtWidgets.QLabel(label))
-        combo = QtWidgets.QComboBox()
-        for u in choices:
-            combo.addItem(u)
-        combo.setCurrentText(current)
-        combo.currentTextChanged.connect(callback)
-        row.addWidget(combo)
-        layout.addLayout(row)
-        return combo
 
     def _on_framed_change(self, value: float) -> None:
         """Update the camera's n_framed and sync the Keep All checkbox.
