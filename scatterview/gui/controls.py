@@ -56,17 +56,6 @@ class ControlPanel:
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        # 3D viewport on the left (stretch factor 3).  Any Qt stylesheet
-        # with a ``background-color`` rule matching the embedded
-        # QOpenGLWidget — including via a cascaded ``QWidget`` selector on
-        # an ancestor — flips the canvas into a raster-composited paint
-        # path: Qt allocates a CPU backing store at canvas size, paints
-        # the stylesheet background each frame, and blits the GL
-        # framebuffer on top.  Cheap at 1 Mpix, crippling at 3 Mpix.  We
-        # dodge it by keeping the dark-theme stylesheet off all ancestors
-        # of the canvas (it lives on the control panel subtree instead,
-        # see below) and by setting the window chrome color via palette,
-        # which the style system does not intercept.
         canvas_widget = engine.canvas.native
         layout.addWidget(canvas_widget, stretch=3)
 
