@@ -25,7 +25,7 @@ class ControlPanel:
             engine: RenderEngine instance providing the VisPy canvas and API.
             camera_controller: CameraController driving the main viewport camera.
         """
-        from PyQt6 import QtCore, QtGui, QtWidgets
+        from PyQt6 import QtCore, QtWidgets
 
         self._engine = engine
         self._camera = camera_controller
@@ -48,7 +48,6 @@ class ControlPanel:
         self._window = _MainWindow()
         self._window.setWindowTitle("ScatterView 2.0")
         self._window.resize(1400, 800)
-        self._apply_dark_theme()
 
         # Central widget with horizontal layout
         central = QtWidgets.QWidget()
@@ -57,20 +56,18 @@ class ControlPanel:
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        # 3D viewport on the left (stretch factor 3).  The window's
-        # stylesheet targets ``QWidget`` with a background-color rule, which
-        # by default propagates to the embedded QOpenGLWidget and routes its
-        # painting through Qt's raster engine — Qt allocates a CPU backing
-        # store sized to the canvas, raster-paints the background each frame,
-        # and blits the GL framebuffer on top.  At default window size this
-        # is cheap; when maximized the per-pixel cost tanks the render loop.
-        # Break the inheritance on the canvas widget alone: no styled
-        # background, no auto-filled background, transparent widget-level
-        # stylesheet to override any cascaded rule.
+        # 3D viewport on the left (stretch factor 3).  Any Qt stylesheet
+        # with a ``background-color`` rule matching the embedded
+        # QOpenGLWidget — including via a cascaded ``QWidget`` selector on
+        # an ancestor — flips the canvas into a raster-composited paint
+        # path: Qt allocates a CPU backing store at canvas size, paints
+        # the stylesheet background each frame, and blits the GL
+        # framebuffer on top.  Cheap at 1 Mpix, crippling at 3 Mpix.  We
+        # dodge it by keeping the dark-theme stylesheet off all ancestors
+        # of the canvas (it lives on the control panel subtree instead,
+        # see below) and by setting the window chrome color via palette,
+        # which the style system does not intercept.
         canvas_widget = engine.canvas.native
-        canvas_widget.setAttribute(QtCore.Qt.WidgetAttribute.WA_StyledBackground, False)
-        canvas_widget.setAutoFillBackground(False)
-        canvas_widget.setStyleSheet("background: transparent; border: none;")
         layout.addWidget(canvas_widget, stretch=3)
 
         # Control panel on the right (stretch factor 1)
@@ -101,153 +98,6 @@ class ControlPanel:
         # mouse wheel to scroll the panel instead nudges whichever
         # slider/spinbox/combo happens to be under the cursor.
         self._install_wheel_filter(panel_widget)
-
-    def _apply_dark_theme(self) -> None:
-        """Apply a dark theme stylesheet inspired by Windows 11 / Fluent."""
-        self._window.setStyleSheet("""
-            QMainWindow, QWidget {
-                background-color: #1e1e1e;
-                color: #e0e0e0;
-                font-family: "Segoe UI", "Noto Sans", sans-serif;
-                font-size: 11pt;
-            }
-            QGroupBox {
-                background-color: #2d2d2d;
-                border: 1px solid #3d3d3d;
-                border-radius: 6px;
-                margin-top: 8px;
-                padding: 12px 8px 8px 8px;
-                font-weight: 600;
-            }
-            QGroupBox::title {
-                subcontrol-origin: margin;
-                left: 12px;
-                padding: 0 4px;
-                color: #9cdcfe;
-            }
-            QPushButton {
-                background-color: #3a3a3a;
-                border: 1px solid #4a4a4a;
-                border-radius: 4px;
-                padding: 5px 16px;
-                color: #e0e0e0;
-                min-height: 20px;
-            }
-            QPushButton:hover {
-                background-color: #454545;
-                border-color: #6a6a6a;
-            }
-            QPushButton:pressed {
-                background-color: #505050;
-            }
-            QSlider::groove:horizontal {
-                height: 4px;
-                background: #3d3d3d;
-                border-radius: 2px;
-            }
-            QSlider::handle:horizontal {
-                background: #9cdcfe;
-                width: 14px;
-                height: 14px;
-                margin: -5px 0;
-                border-radius: 7px;
-            }
-            QSlider::handle:horizontal:hover {
-                background: #b4e8ff;
-            }
-            QSlider::sub-page:horizontal {
-                background: #4a7a9b;
-                border-radius: 2px;
-            }
-            QComboBox {
-                background-color: #3a3a3a;
-                border: 1px solid #4a4a4a;
-                border-radius: 4px;
-                padding: 3px 8px;
-                color: #e0e0e0;
-                min-height: 20px;
-            }
-            QComboBox:hover {
-                border-color: #6a6a6a;
-            }
-            QComboBox::drop-down {
-                border: none;
-                width: 20px;
-            }
-            QComboBox::down-arrow {
-                image: none;
-                border-left: 4px solid transparent;
-                border-right: 4px solid transparent;
-                border-top: 5px solid #9cdcfe;
-                margin-right: 6px;
-            }
-            QComboBox QAbstractItemView {
-                background-color: #2d2d2d;
-                border: 1px solid #4a4a4a;
-                selection-background-color: #3a5a7a;
-                color: #e0e0e0;
-            }
-            QLineEdit {
-                background-color: #2a2a2a;
-                border: 1px solid #3d3d3d;
-                border-radius: 3px;
-                padding: 2px 4px;
-                color: #e0e0e0;
-                selection-background-color: #3a5a7a;
-            }
-            QLineEdit:focus {
-                border-color: #9cdcfe;
-            }
-            QCheckBox {
-                spacing: 6px;
-                color: #e0e0e0;
-            }
-            QCheckBox::indicator {
-                width: 16px;
-                height: 16px;
-                border: 2px solid #555555;
-                border-radius: 3px;
-                background-color: #2a2a2a;
-            }
-            QCheckBox::indicator:checked {
-                background-color: #4a90d9;
-                border-color: #4a90d9;
-            }
-            QCheckBox::indicator:hover {
-                border-color: #7ab0e0;
-            }
-            QScrollArea {
-                border: none;
-                background-color: #1e1e1e;
-            }
-            QScrollBar:vertical {
-                background: #1e1e1e;
-                width: 14px;
-                border: none;
-            }
-            QScrollBar::handle:vertical {
-                background: #4a4a4a;
-                border-radius: 7px;
-                min-height: 24px;
-            }
-            QScrollBar::handle:vertical:hover {
-                background: #6a6a6a;
-            }
-            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
-                height: 0;
-            }
-            QLabel {
-                color: #c0c0c0;
-            }
-            QToolTip {
-                background-color: #2d2d2d;
-                border: 1px solid #4a4a4a;
-                border-radius: 4px;
-                padding: 4px 8px;
-                color: #e0e0e0;
-                font-size: 10pt;
-            }
-        """)
 
     def _add_section(self, title: str) -> "QtWidgets.QVBoxLayout":
         """Add a labelled group box to the control panel.
