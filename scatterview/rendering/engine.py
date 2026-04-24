@@ -311,7 +311,7 @@ class RenderEngine:
         self._build_visuals()
 
         # Timer and camera
-        self._timer = app.Timer(interval=1.0 / 60.0, connect=self._on_timer, start=False)
+        self._timer = app.Timer(interval=1.0 / 120.0, connect=self._on_timer, start=False)
         self._camera_controller = None
 
         # Auto-enable free zoom on scroll wheel / trackpad zoom
