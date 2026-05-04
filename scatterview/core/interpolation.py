@@ -350,32 +350,6 @@ class TrajectoryInterpolator:
 
         return positions, mask
 
-    def evaluate_trails_batch(
-        self,
-        pids: list[int],
-        t_end: float,
-        trail_length: float,
-    ) -> dict[int, tuple[np.ndarray, np.ndarray]]:
-        """Evaluate trails for multiple particles at once.
-
-        Uses each particle's simulation timesteps as the seed grid,
-        then refines per-particle.
-
-        Args:
-            pids: List of integer particle IDs to evaluate.
-            t_end: End time of the trail window (current simulation time).
-            trail_length: Duration of the trail window in simulation time units.
-
-        Returns:
-            Dict of pid -> (positions, times) for particles with data.
-        """
-        results = {}
-        for pid in pids:
-            result = self.evaluate_trail(pid, t_end, trail_length)
-            if result is not None:
-                results[pid] = result
-        return results
-
     def precompute_all_trails(
         self,
         n_workers: int | None = None,
@@ -490,49 +464,6 @@ class TrajectoryInterpolator:
 
         positions, times = self._refine_trail(segments, times, positions)
         return positions, times
-
-    def evaluate_spline(self, pid: int, times: np.ndarray) -> np.ndarray | None:
-        """Evaluate a single particle's spline at the given times.
-
-        Args:
-            pid: Integer particle ID.
-            times: (N,) array of simulation times to evaluate at.
-
-        Returns:
-            (N, 3) position array, or None if the particle has no splines.
-        """
-        segments = self._particle_splines.get(pid, [])
-        if not segments:
-            return None
-        return self._eval_times(segments, times)
-
-    def evaluate_single(self, pid: int, time: float) -> np.ndarray | None:
-        """Evaluate one particle at one scalar time.
-
-        Args:
-            pid: Integer particle ID.
-            time: Simulation time to evaluate at.
-
-        Returns:
-            (3,) position array, or None if the particle doesn't exist at this time.
-        """
-        return self._evaluate_particle(self._particle_splines.get(pid, []), time)
-
-    def refine_trail(
-        self, pid: int, times: np.ndarray, positions: np.ndarray
-    ) -> tuple[np.ndarray, np.ndarray]:
-        """Run angle-based refinement on a particle's trail segment.
-
-        Args:
-            pid: Integer particle ID (used to look up spline segments).
-            times: (N,) seed time grid for the trail.
-            positions: (N, 3) positions at the seed times.
-
-        Returns:
-            (refined_positions, refined_times) tuple with inserted points.
-        """
-        segments = self._particle_splines.get(pid, [])
-        return self._refine_trail(segments, times, positions)
 
     def _eval_times(
         self, segments: list, times: np.ndarray

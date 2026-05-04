@@ -93,20 +93,6 @@ def main(argv: list[str] | None = None) -> None:
         help="Run event detection and print results",
     )
     parser.add_argument(
-        "--mass-unit",
-        type=str,
-        default=D.UNIT_MASS,
-        choices=D.MASS_UNITS,
-        help=f"Mass unit of the input data (default: {D.UNIT_MASS})",
-    )
-    parser.add_argument(
-        "--distance-unit",
-        type=str,
-        default=D.UNIT_DISTANCE,
-        choices=D.DISTANCE_UNITS,
-        help=f"Distance unit of the input data (default: {D.UNIT_DISTANCE})",
-    )
-    parser.add_argument(
         "--time-unit",
         type=str,
         default=D.UNIT_TIME,

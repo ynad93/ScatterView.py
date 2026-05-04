@@ -29,5 +29,4 @@ exclude screenshot.png
 exclude environment.yml
 exclude profile_engine.py
 exclude diagnose_qt_gl.py
-exclude sv_measure.py
 exclude sv_measure_variants.py

@@ -39,6 +39,10 @@ BH_STARTYPE = 14               # BSE stellar type code identifying black holes
 BH_FACE_COLOR = (0.02, 0.02, 0.05, 0.15)  # near-black with low opacity
 BH_EDGE_WIDTH = 2.0            # edge ring width in pixels
 
+# --- Target highlight (camera target ring) ---
+HIGHLIGHT_EDGE_COLOR = (1.0, 0.85, 0.0, 1.0)
+HIGHLIGHT_EDGE_WIDTH = 3.0
+
 # --- Lighting (world-space directional light for spherical markers) ---
 # The light direction is transformed into eye space each frame so that
 # shading changes as you orbit.  Offset from the default camera view
@@ -64,78 +68,9 @@ REFINE_ANGLE_DEG = 3.0         # maximum chord angle (degrees) between consecuti
 
 
 # --- Physical units ---
-# Labels for the simulation's unit system.  These describe the units of
-# the *input data* (positions, masses, times) and are used for the time
-# overlay display.
-UNIT_MASS = "Msun"
-UNIT_DISTANCE = "AU"
 UNIT_TIME = "yr"
 
-# Conversion to CGS for each supported unit label.
-_MASS_TO_CGS = {
-    "Msun": 1.98892e33,
-    "kg": 1e3,
-    "g": 1.0,
-}
-_DISTANCE_TO_CGS = {
-    "AU": 1.496e13,
-    "pc": 3.0857e18,
-    "kpc": 3.0857e21,
-    "Mpc": 3.0857e24,
-    "Rsun": 6.957e10,
-    "km": 1e5,
-    "m": 1e2,
-    "cm": 1.0,
-}
-_TIME_TO_CGS = {
-    "yr": 3.15576e7,
-    "Myr": 3.15576e13,
-    "Gyr": 3.15576e16,
-    "kyr": 3.15576e10,
-    "s": 1.0,
-}
-
-MASS_UNITS = list(_MASS_TO_CGS.keys())
-DISTANCE_UNITS = list(_DISTANCE_TO_CGS.keys())
-TIME_UNITS = list(_TIME_TO_CGS.keys())
-
-# Fundamental constants in CGS
-_G_CGS = 6.67430e-8           # cm³ g⁻¹ s⁻²
-_C_CGS = 2.99792458e10        # cm s⁻¹
-
-
-def G_in_units(mass_unit: str = UNIT_MASS, dist_unit: str = UNIT_DISTANCE,
-               time_unit: str = UNIT_TIME) -> float:
-    """Gravitational constant G in the given unit system.
-
-    Args:
-        mass_unit: Mass unit label (key into _MASS_TO_CGS).
-        dist_unit: Distance unit label (key into _DISTANCE_TO_CGS).
-        time_unit: Time unit label (key into _TIME_TO_CGS).
-
-    Returns:
-        G in the specified unit system.
-    """
-    m = _MASS_TO_CGS[mass_unit]
-    d = _DISTANCE_TO_CGS[dist_unit]
-    t = _TIME_TO_CGS[time_unit]
-    return _G_CGS * m * t ** 2 / d ** 3
-
-
-def c_in_units(dist_unit: str = UNIT_DISTANCE,
-               time_unit: str = UNIT_TIME) -> float:
-    """Speed of light c in the given unit system.
-
-    Args:
-        dist_unit: Distance unit label (key into _DISTANCE_TO_CGS).
-        time_unit: Time unit label (key into _TIME_TO_CGS).
-
-    Returns:
-        c in the specified unit system.
-    """
-    d = _DISTANCE_TO_CGS[dist_unit]
-    t = _TIME_TO_CGS[time_unit]
-    return _C_CGS * t / d
+TIME_UNITS = ["yr", "Myr", "Gyr", "kyr", "s"]
 
 
 # --- Time overlay ---

@@ -511,6 +511,33 @@ class ControlPanel:
         row.addWidget(self._target_combo)
         section.addLayout(row)
 
+        # Target highlight toggle — bright ring on selected targets in both views
+        self._highlight_target_cb = QtWidgets.QCheckBox("Highlight Target")
+        self._highlight_target_cb.setChecked(self._engine._highlight_target_enabled)
+        self._highlight_target_cb.toggled.connect(self._engine.enable_target_highlight)
+        section.addWidget(self._highlight_target_cb)
+
+        # Highlight colour preset
+        row = QtWidgets.QHBoxLayout()
+        row.addWidget(QtWidgets.QLabel("Highlight Color"))
+        self._highlight_color_combo = QtWidgets.QComboBox()
+        self._highlight_color_presets = {
+            "Yellow": (1.0, 0.85, 0.0, 1.0),
+            "Cyan": (0.0, 1.0, 1.0, 1.0),
+            "Magenta": (1.0, 0.2, 1.0, 1.0),
+            "Lime": (0.4, 1.0, 0.1, 1.0),
+            "Orange": (1.0, 0.5, 0.0, 1.0),
+            "Red": (1.0, 0.1, 0.1, 1.0),
+            "White": (1.0, 1.0, 1.0, 1.0),
+        }
+        for name in self._highlight_color_presets:
+            self._highlight_color_combo.addItem(name)
+        self._highlight_color_combo.currentTextChanged.connect(
+            lambda text: self._engine.set_highlight_color(self._highlight_color_presets[text])
+        )
+        row.addWidget(self._highlight_color_combo)
+        section.addLayout(row)
+
         # Framing count: how many closest particles drive the camera
         self._framed_slider = self._add_slider(
             section, "Framed", 1, n_particles, self._camera.n_framed,
@@ -1114,12 +1141,7 @@ class ControlPanel:
         ctrl = self._engine._subview_camera_controller
         if ctrl is None:
             return
-        center_modes = {
-            "Target": (False, False),
-            "Group Centroid": (True, False),
-            "Group CoM": (True, True),
-        }
-        use_group, mass_weighted = center_modes.get(text, (False, False))
+        use_group, mass_weighted = self._center_mode_names.get(text, (False, False))
         ctrl.use_group_center = use_group
         ctrl.mass_weighted_center = mass_weighted
 

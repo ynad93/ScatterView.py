@@ -181,6 +181,8 @@ class RenderEngine:
         self._trail_alpha = D.TRAIL_ALPHA
         self._trail_length_frac = D.TRAIL_LENGTH_FRAC
         self._trails_enabled = True
+        self._highlight_target_enabled = False
+        self._highlight_color = np.array(D.HIGHLIGHT_EDGE_COLOR, dtype=np.float32)
 
         # Manual control speeds (WASD pan and scroll zoom)
         self._pan_speed = 0.02       # fraction of camera distance per frame
@@ -266,6 +268,8 @@ class RenderEngine:
         )
         self._view.camera.set_range()
 
+        self._camera_controller = None
+
         # Sub-view — own ViewBox on the same canvas
         self._subview = None
         self._subview_enabled = False
@@ -281,7 +285,6 @@ class RenderEngine:
         # Visuals
         self._particle_visual = None
         self._trail_line = None
-        self._subview_trail_line = None
 
         # Pre-computed trails: evaluated once at startup for the entire
         # simulation, then sliced per-frame via a sliding window.
@@ -313,7 +316,6 @@ class RenderEngine:
 
         # Timer and camera
         self._timer = app.Timer(interval=1.0 / 120.0, connect=self._on_timer, start=False)
-        self._camera_controller = None
 
         # Auto-enable free zoom on scroll wheel / trackpad zoom
         self._canvas.events.mouse_wheel.connect(self._on_mouse_wheel)
@@ -731,6 +733,20 @@ class RenderEngine:
             edge_color[bh_mask] = self._colors[mask][bh_mask]
             edge_color[bh_mask, 3] = 1.0
             edge_width[bh_mask] = D.BH_EDGE_WIDTH
+
+        if self._highlight_target_enabled:
+            for ctrl in (self._camera_controller, self._subview_camera_controller):
+                if ctrl is None:
+                    continue
+                pid = ctrl.target_particle
+                if pid is None:
+                    continue
+                idx = self._id_to_idx.get(int(pid))
+                if idx is None or not mask[idx]:
+                    continue
+                compressed_idx = int(mask[:idx].sum())
+                edge_color[compressed_idx] = self._highlight_color
+                edge_width[compressed_idx] = D.HIGHLIGHT_EDGE_WIDTH
 
         return {"face_color": face_color, "edge_color": edge_color,
                 "edge_width": edge_width, "size": sizes}
@@ -1167,17 +1183,6 @@ class RenderEngine:
         """
         self._anim_speed = max(0.001, speed)
 
-    def set_particle_color(self, pid: int, rgba: tuple[float, ...]) -> None:
-        """Set the color of a single particle.
-
-        Args:
-            pid: Integer particle ID.
-            rgba: (R, G, B, A) color tuple with values in [0, 1].
-        """
-        idx = self._id_to_idx.get(pid)
-        if idx is not None:
-            self._colors[idx] = np.array(rgba, dtype=np.float32)
-
     def set_particle_size(self, pid: int, size: float) -> None:
         """Set the per-particle size multiplier.
 
@@ -1287,17 +1292,6 @@ class RenderEngine:
         self._subview_lock_last_az = target_az
         self._subview_lock_last_el = target_el
 
-    def set_black_hole(self, pid: int, is_bh: bool = True) -> None:
-        """Mark or unmark a particle as a black hole for special rendering.
-
-        Args:
-            pid: Integer particle ID.
-            is_bh: If True, render with black-hole styling (dark face, colored edge ring).
-        """
-        idx = self._id_to_idx.get(pid)
-        if idx is not None:
-            self._is_bh[idx] = is_bh
-
     def set_trail_length(self, frac: float) -> None:
         """Set trail length as a fraction of total simulation time.
 
@@ -1329,6 +1323,16 @@ class RenderEngine:
         else:
             self._trail_si[:] = -1
             self._trail_ei[:] = -1
+
+    def enable_target_highlight(self, enabled: bool = True) -> None:
+        """Toggle the bright edge ring drawn around camera target particles."""
+        self._highlight_target_enabled = bool(enabled)
+        self._canvas.update()
+
+    def set_highlight_color(self, rgba: tuple[float, float, float, float]) -> None:
+        """Set the edge ring colour drawn around camera target particles."""
+        self._highlight_color = np.array(rgba, dtype=np.float32)
+        self._canvas.update()
 
     def set_point_alpha(self, alpha: float) -> None:
         """Set particle marker opacity.
