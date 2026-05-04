@@ -1,6 +1,6 @@
 # ScatterView
 
-A Python + VisPy visualization tool for N-body scattering simulations. Renders particle trajectories in real-time 3D with cubic spline interpolation, precomputed trail rendering, and an interactive camera system.
+A Python + VisPy visualization tool for N-body scattering simulations. Renders particle trajectories in real-time 3D with cubic spline interpolation, precomputed trail rendering, and an interactive camera system. This tool is based on the original ScatterView project composed by Aaron Geller and has been developed with significant help from the Claude Code tool (Anthropic, Opus 4.6).
 
 ## Features
 
