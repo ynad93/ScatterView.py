@@ -1,0 +1,33 @@
+include LICENSE
+include README.md
+include pyproject.toml
+
+recursive-include scatterview *.py
+
+# Strip developer artifacts and sample assets from the sdist.
+prune scatterview/tests
+prune data
+prune .vscode
+prune .claude
+prune .pytest_cache
+recursive-exclude scatterview __pycache__
+recursive-exclude scatterview *.pyc
+recursive-exclude scatterview *.pyo
+recursive-exclude scatterview *.nbc
+recursive-exclude scatterview *.nbi
+global-exclude __pycache__
+global-exclude *.py[cod]
+global-exclude *.mp4
+global-exclude *.mov
+global-exclude *.avi
+global-exclude *.gif
+global-exclude *.h5
+global-exclude *.hdf5
+global-exclude *.prof
+global-exclude *.csv
+exclude screenshot.png
+exclude environment.yml
+exclude profile_engine.py
+exclude diagnose_qt_gl.py
+exclude sv_measure.py
+exclude sv_measure_variants.py

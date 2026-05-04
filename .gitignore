@@ -1,2 +1,33 @@
-.ipynb_checkpoints
-**__pycache__**
+# Python build / cache
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+.eggs/
+build/
+dist/
+wheels/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Editor / IDE
+.vscode/
+.idea/
+.claude/
+
+# Profiling output
+*.prof
+
+# Sample / generated media and data (kept out of the repo and the sdist)
+*.mp4
+*.mov
+*.avi
+*.gif
+*.h5
+*.hdf5
+screenshot.png
+
+# Top-level local development scripts (kept out of the package distribution)
+diagnose_qt_gl.py
+sv_measure.py
+sv_measure_variants.py

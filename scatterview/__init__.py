@@ -69,4 +69,4 @@ def _install_vispy_dpi_shim():
 _install_vispy_dpi_shim()
 
 
-__version__ = "2.0.0"
+__version__ = "2.1.0"
