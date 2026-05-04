@@ -180,6 +180,7 @@ class RenderEngine:
         self._point_alpha = D.POINT_ALPHA
         self._trail_alpha = D.TRAIL_ALPHA
         self._trail_length_frac = D.TRAIL_LENGTH_FRAC
+        self._trails_enabled = True
 
         # Manual control speeds (WASD pan and scroll zoom)
         self._pan_speed = 0.02       # fraction of camera distance per frame
@@ -222,7 +223,7 @@ class RenderEngine:
         self._time_text = None  # VisPy Text visual, created in _build_visuals
 
         # Star field background
-        self._stars_enabled = True
+        self._stars_enabled = False
         self._star_visual = None
         self._star_count = D.STAR_COUNT
         self._star_directions = None   # (N, 3) float32 unit vectors, fixed
@@ -829,6 +830,10 @@ class RenderEngine:
         """
         from vispy import scene
 
+        if not self._trails_enabled:
+            self._hide_all_trails()
+            return
+
         # Trail window: [t_trail_start, time] covers trail_length_frac
         # of the total simulation duration
         trail_length = self._time_range * self._trail_length_frac
@@ -1311,6 +1316,19 @@ class RenderEngine:
             alpha: Opacity in [0, 1]. Trails fade from 0 at the tail to this value.
         """
         self._trail_alpha = np.clip(alpha, 0.0, 1.0)
+
+    def enable_trails(self, enabled: bool = True) -> None:
+        """Toggle trail rendering for both the main view and sub-view.
+
+        Args:
+            enabled: If True, particle trails are drawn each frame.
+        """
+        self._trails_enabled = bool(enabled)
+        if not self._trails_enabled:
+            self._hide_all_trails()
+        else:
+            self._trail_si[:] = -1
+            self._trail_ei[:] = -1
 
     def set_point_alpha(self, alpha: float) -> None:
         """Set particle marker opacity.

@@ -359,6 +359,12 @@ class ControlPanel:
                     tooltip=f"Size multiplier for particle {name}.",
                 )
 
+        # Trail enable toggle
+        self._trails_cb = QtWidgets.QCheckBox("Show Trails")
+        self._trails_cb.setChecked(self._engine._trails_enabled)
+        self._trails_cb.toggled.connect(self._engine.enable_trails)
+        section.addWidget(self._trails_cb)
+
         # Trail length (logarithmic, fraction of total simulation time)
         self._trail_slider = self._add_slider(
             section, "Trail (frac)", 0.001, 0.5, self._engine._trail_length_frac,
