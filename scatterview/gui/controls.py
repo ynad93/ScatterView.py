@@ -346,19 +346,6 @@ class ControlPanel:
             tooltip="Global multiplier for all particle sizes.\n1.0 = default.",
         )
 
-        # Per-particle scale sliders (only if manageable number)
-        n_particles = len(self._engine._data.particle_ids)
-        if n_particles <= 20:
-            labels = self._engine._data.id_labels
-            for pid in self._engine._data.particle_ids:
-                pid_key = int(pid)
-                name = labels[pid_key] if labels else str(pid_key)
-                self._add_slider(
-                    section, f"Scale {name}", 0.1, 5.0, 1.0,
-                    lambda v, p=pid_key: self._engine.set_particle_size(p, v),
-                    tooltip=f"Size multiplier for particle {name}.",
-                )
-
         # Trail enable toggle
         self._trails_cb = QtWidgets.QCheckBox("Show Trails")
         self._trails_cb.setChecked(self._engine._trails_enabled)
