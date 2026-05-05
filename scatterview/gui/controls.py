@@ -622,7 +622,7 @@ class ControlPanel:
 
         # Zoom memory: how many frames the camera remembers peak framing radius
         self._add_slider(
-            section, "Zoom Memory", 10, 600, self._camera._zoom_memory_frames,
+            section, "Zoom Memory", 10, 1000, self._camera._zoom_memory_frames,
             self._on_zoom_memory_change,
             tooltip="Rolling-average window (frames) for camera zoom.\n"
                     "The camera distance tracks the mean framing radius\n"
