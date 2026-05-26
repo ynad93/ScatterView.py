@@ -79,6 +79,11 @@ class TrajectoryInterpolator:
         data = self._data
         has_vel = data.velocities is not None
 
+        if has_vel:
+            print("Velocities found: building cubic Hermite splines.")
+        else:
+            print("No velocities found: building natural cubic splines.")
+
         for pid in data.particle_ids:
             pid_key = int(pid)
             pos = data.positions[pid_key]  # (T_i, 3)

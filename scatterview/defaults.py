@@ -62,10 +62,10 @@ VIDEO_WIDTH = 2560             # default export width in pixels
 VIDEO_HEIGHT = 1440            # default export height in pixels
 
 # --- Trail refinement ---
-REFINE_ANGLE_DEG = 3.6         # maximum chord angle (degrees) between consecutive
+REFINE_ANGLE_DEG = 1.         # maximum chord angle (degrees) between consecutive
                                # trail points; segments exceeding this get subdivided
                                # during precomputation
-MAX_INSERTIONS_PER_SEGMENT = 8 # hard cap on points inserted per existing segment;
+MAX_INSERTIONS_PER_SEGMENT = 10 # hard cap on points inserted per existing segment;
                                # bounds precomputed-trail size when many adjacent
                                # samples sit on a tight curve (e.g. close encounters)
 
