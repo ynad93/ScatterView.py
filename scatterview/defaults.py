@@ -25,9 +25,9 @@ DEPTH_SCALING = False          # if True, closer particles appear larger (perspe
 # --- Camera ---
 CAMERA_FOV = 45                # field of view in degrees
 ROTATION_SPEED = 0.5           # auto-rotate: degrees of azimuth per frame
-FRAMING_FRACTION = 0.95        # framed particles stay within this fraction
+FRAMING_FRACTION = 0.9        # framed particles stay within this fraction
                                # of the screen's vertical half-extent
-ZOOM_MEMORY_FRAMES = 60        # rolling-average window for framing radius (frames)
+ZOOM_MEMORY_FRAMES = 120        # rolling-average window for framing radius (frames)
                                # camera distance tracks the mean radius over this
                                # many frames, filtering orbital oscillations while
                                # responding smoothly to scale changes.
@@ -62,9 +62,12 @@ VIDEO_WIDTH = 2560             # default export width in pixels
 VIDEO_HEIGHT = 1440            # default export height in pixels
 
 # --- Trail refinement ---
-REFINE_ANGLE_DEG = 3.0         # maximum chord angle (degrees) between consecutive
+REFINE_ANGLE_DEG = 3.6         # maximum chord angle (degrees) between consecutive
                                # trail points; segments exceeding this get subdivided
                                # during precomputation
+MAX_INSERTIONS_PER_SEGMENT = 8 # hard cap on points inserted per existing segment;
+                               # bounds precomputed-trail size when many adjacent
+                               # samples sit on a tight curve (e.g. close encounters)
 
 
 # --- Physical units ---

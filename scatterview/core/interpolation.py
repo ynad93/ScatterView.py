@@ -549,12 +549,12 @@ class TrajectoryInterpolator:
         segment_bend_angle[:-1] = np.maximum(segment_bend_angle[:-1], deflection_angles_deg)
         segment_bend_angle[1:] = np.maximum(segment_bend_angle[1:], deflection_angles_deg)
 
-        # Insert ceil(angle)-1 new points into each segment that exceeds
-        # the threshold.  This gives ~1 point per degree of bend, making
-        # sharp slingshots visually smooth as polylines.
-        points_to_insert = np.maximum(np.ceil(segment_bend_angle).astype(int) - 1, 0)
-        # Zero out segments below the angle threshold — no refinement needed
+        # Aim for one chord per ``REFINE_ANGLE_DEG`` of bend, capped at
+        # ``MAX_INSERTIONS_PER_SEGMENT`` so dense close-encounter regions
+        # cannot blow up the precomputed trail array.
+        points_to_insert = np.maximum(np.ceil(segment_bend_angle / D.REFINE_ANGLE_DEG).astype(int) - 1, 0)
         points_to_insert[segment_bend_angle < D.REFINE_ANGLE_DEG] = 0
+        np.minimum(points_to_insert, D.MAX_INSERTIONS_PER_SEGMENT, out=points_to_insert)
 
         if points_to_insert.sum() == 0:
             return positions, times
