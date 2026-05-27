@@ -189,6 +189,12 @@ class TrajectoryInterpolator:
 
         return segments
 
+    def evaluate_particle(self, pid: int, time: float) -> np.ndarray | None:
+        """Evaluate a single particle's position at a given time."""
+        return self._evaluate_particle(
+            self._particle_splines.get(int(pid), []), time,
+        )
+
     def evaluate(self, time: float) -> dict[int, np.ndarray | None]:
         """Evaluate all particle positions at a given time.
 
@@ -611,7 +617,7 @@ class TrajectoryInterpolator:
         """
         for seg in segments:
             if seg.t_start <= time <= seg.t_end:
-                return seg.spline(time) if seg.spline else seg.constant_pos
+                return seg.evaluate(time)
 
         if not segments:
             return None
@@ -625,11 +631,11 @@ class TrajectoryInterpolator:
 
         if time < segments[0].t_start and (segments[0].t_start - time) <= clamp_tol:
             seg = segments[0]
-            return seg.spline(seg.t_start) if seg.spline else seg.constant_pos
+            return seg.evaluate(seg.t_start)
 
         if time > segments[-1].t_end and (time - segments[-1].t_end) <= clamp_tol:
             seg = segments[-1]
-            return seg.spline(seg.t_end) if seg.spline else seg.constant_pos
+            return seg.evaluate(seg.t_end)
 
         return None
 
@@ -659,3 +665,6 @@ class _SegmentSpline:
         self.t_end = t_end
         self.spline = spline
         self.constant_pos = constant_pos
+
+    def evaluate(self, t: float) -> np.ndarray:
+        return self.spline(t) if self.spline else self.constant_pos

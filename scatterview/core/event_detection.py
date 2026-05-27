@@ -7,6 +7,7 @@ close encounters, mergers, and ejections.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from itertools import combinations
 
 import numpy as np
 
@@ -104,45 +105,39 @@ class EventDetector:
         pids = [int(p) for p in self._data.particle_ids]
 
         # For each pair of particles, track minimum separation
-        for i in range(len(pids)):
-            for j in range(i + 1, len(pids)):
-                pid_a, pid_b = pids[i], pids[j]
-                min_sep = float("inf")
-                min_time = times[0]
-                min_pos = np.zeros(3)
+        for pid_a, pid_b in combinations(pids, 2):
+            min_sep = float("inf")
+            min_time = times[0]
+            min_pos = np.zeros(3)
 
-                for t in sample_times:
-                    pos_a = self._interp._evaluate_particle(
-                        self._interp._particle_splines.get(pid_a, []), t
+            for t in sample_times:
+                pos_a = self._interp.evaluate_particle(pid_a, t)
+                pos_b = self._interp.evaluate_particle(pid_b, t)
+
+                if pos_a is None or pos_b is None:
+                    continue
+
+                sep = np.linalg.norm(pos_a - pos_b)
+                if sep < min_sep:
+                    min_sep = sep
+                    min_time = t
+                    min_pos = (pos_a + pos_b) / 2
+
+            if min_sep < self._close_threshold:
+                score = self._close_threshold / max(min_sep, 1e-30)
+                self._events.append(
+                    Event(
+                        time=min_time,
+                        event_type="close_encounter",
+                        particle_ids=[pid_a, pid_b],
+                        position=min_pos,
+                        interest_score=min(score, 100.0),
+                        description=(
+                            f"Close encounter: particles {pid_a} & {pid_b} "
+                            f"at separation {min_sep:.4g}"
+                        ),
                     )
-                    pos_b = self._interp._evaluate_particle(
-                        self._interp._particle_splines.get(pid_b, []), t
-                    )
-
-                    if pos_a is None or pos_b is None:
-                        continue
-
-                    sep = np.linalg.norm(pos_a - pos_b)
-                    if sep < min_sep:
-                        min_sep = sep
-                        min_time = t
-                        min_pos = (pos_a + pos_b) / 2
-
-                if min_sep < self._close_threshold:
-                    score = self._close_threshold / max(min_sep, 1e-30)
-                    self._events.append(
-                        Event(
-                            time=min_time,
-                            event_type="close_encounter",
-                            particle_ids=[pid_a, pid_b],
-                            position=min_pos,
-                            interest_score=min(score, 100.0),
-                            description=(
-                                f"Close encounter: particles {pid_a} & {pid_b} "
-                                f"at separation {min_sep:.4g}"
-                            ),
-                        )
-                    )
+                )
 
     def _detect_mergers(self) -> None:
         """Detect mergers: particle disappearance near another particle."""
@@ -160,9 +155,7 @@ class EventDetector:
                 continue  # Particle survives to the end
 
             # Get position at disappearance time
-            pos_at_end = self._interp._evaluate_particle(
-                self._interp._particle_splines.get(pid, []), last_valid_time
-            )
+            pos_at_end = self._interp.evaluate_particle(pid, last_valid_time)
             if pos_at_end is None:
                 continue
 
@@ -174,10 +167,7 @@ class EventDetector:
             for other_pid in pids:
                 if other_pid == pid:
                     continue
-                pos_other = self._interp._evaluate_particle(
-                    self._interp._particle_splines.get(other_pid, []),
-                    last_valid_time,
-                )
+                pos_other = self._interp.evaluate_particle(other_pid, last_valid_time)
                 if pos_other is None:
                     continue
                 sep = np.linalg.norm(pos_at_end - pos_other)
@@ -229,9 +219,7 @@ class EventDetector:
                 com = active_pos.mean(axis=0)
 
                 # Get this particle's position
-                pos = self._interp._evaluate_particle(
-                    self._interp._particle_splines.get(pid, []), t
-                )
+                pos = self._interp.evaluate_particle(pid, t)
                 if pos is None:
                     continue
 

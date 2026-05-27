@@ -280,25 +280,30 @@ def _compute_valid_intervals(
     Returns:
         List of (t_start, t_end) tuples for each contiguous valid segment.
     """
-    if not np.any(valid_mask):
+    if not valid_mask.any():
         return []
 
-    intervals = []
-    in_interval = False
-    t_start = 0.0
+    padded = np.concatenate(([False], valid_mask.astype(bool), [False]))
+    starts = np.where(~padded[:-1] & padded[1:])[0]
+    ends = np.where(padded[:-1] & ~padded[1:])[0] - 1
+    return [(float(times[s]), float(times[e])) for s, e in zip(starts, ends)]
 
-    for i, (t, valid) in enumerate(zip(times, valid_mask)):
-        if valid and not in_interval:
-            t_start = t
-            in_interval = True
-        elif not valid and in_interval:
-            intervals.append((t_start, times[i - 1]))
-            in_interval = False
 
-    if in_interval:
-        intervals.append((t_start, times[len(times) - 1]))
-
-    return intervals
+def _populate_particle(
+    pid_key, p, vel_slice, mass_slice, times,
+    positions, velocities, masses, valid_intervals,
+) -> None:
+    """Fill per-particle slots from a (T, 3) position array plus optional aligned vel/mass."""
+    valid_mask = np.all(np.isfinite(p), axis=1)
+    positions[pid_key] = p[valid_mask]
+    if velocities is not None and vel_slice is not None:
+        velocities[pid_key] = vel_slice[valid_mask]
+    if masses is not None and mass_slice is not None:
+        if mass_slice.ndim == 0:
+            masses[pid_key] = np.full(int(valid_mask.sum()), float(mass_slice))
+        else:
+            masses[pid_key] = mass_slice[valid_mask]
+    valid_intervals[pid_key] = _compute_valid_intervals(times, valid_mask)
 
 
 # ---------------------------------------------------------------------------
@@ -571,29 +576,16 @@ def _load_hdf5_single(f, fmap: dict[str, str]) -> SimulationData:
 
     for idx, pid in enumerate(particle_ids):
         pid_key = int(pid)
-        p = pos_data[idx]  # (T, 3)
-
-        # Detect valid timesteps
-        valid_mask = np.all(np.isfinite(p), axis=1)
-        positions[pid_key] = p[valid_mask]
-
-        if has_vel and velocities is not None and vel_data is not None:
-            velocities[pid_key] = vel_data[idx][valid_mask]
-
-        if has_mass and masses is not None and mass_data is not None:
-            if mass_data.ndim == 2:
-                masses[pid_key] = mass_data[idx][valid_mask]
-            else:
-                # Scalar mass per particle, broadcast across valid times
-                masses[pid_key] = np.full(valid_mask.sum(), mass_data[idx])
-
+        _populate_particle(
+            pid_key, pos_data[idx],
+            vel_data[idx] if vel_data is not None else None,
+            mass_data[idx] if mass_data is not None else None,
+            times, positions, velocities, masses, valid_intervals,
+        )
         if has_rad and radii is not None and rad_data is not None:
             radii[pid_key] = float(rad_data[idx])
-
         if has_kst and startypes is not None and kst_data is not None:
             startypes[pid_key] = int(kst_data[idx])
-
-        valid_intervals[pid_key] = _compute_valid_intervals(times, valid_mask)
 
     return SimulationData(
         particle_ids=particle_ids,
@@ -724,18 +716,12 @@ def _load_hdf5_snapshots(f, fmap: dict[str, str]) -> SimulationData:
 
     for idx, pid in enumerate(particle_ids):
         pid_key = int(pid)
-        p = all_pos[idx]  # (T, 3)
-        valid_mask = np.all(np.isfinite(p), axis=1)
-
-        positions[pid_key] = p[valid_mask]
-
-        if has_vel and velocities is not None and all_vel is not None:
-            velocities[pid_key] = all_vel[idx][valid_mask]
-
-        if has_mass and masses is not None and all_mass is not None:
-            masses[pid_key] = all_mass[idx][valid_mask]
-
-        valid_intervals[pid_key] = _compute_valid_intervals(times, valid_mask)
+        _populate_particle(
+            pid_key, all_pos[idx],
+            all_vel[idx] if all_vel is not None else None,
+            all_mass[idx] if all_mass is not None else None,
+            times, positions, velocities, masses, valid_intervals,
+        )
 
     return SimulationData(
         particle_ids=particle_ids,

@@ -446,6 +446,11 @@ class RenderEngine:
         camera.view_changed()
 
     _PAN_KEYS = {'W', 'Up', 'S', 'Down', 'A', 'Left', 'D', 'Right'}
+    _MODIFIER_ATTRS = {
+        'Control': '_ctrl_held',
+        'Alt': '_alt_held',
+        'Shift': '_shift_held',
+    }
 
     def _on_key_press(self, event) -> None:
         """Track held keys for smooth continuous panning/rotation.
@@ -471,12 +476,9 @@ class RenderEngine:
                         cb()
                 if not self._camera_controller.free_zoom:
                     self._camera_controller.free_zoom = True
-        if key_name == 'Control':
-            self._ctrl_held = True
-        if key_name == 'Alt':
-            self._alt_held = True
-        if key_name == 'Shift':
-            self._shift_held = True
+        attr = self._MODIFIER_ATTRS.get(key_name)
+        if attr is not None:
+            setattr(self, attr, True)
 
     def _on_key_release(self, event) -> None:
         """Stop panning/rotation when key is released.
@@ -486,12 +488,9 @@ class RenderEngine:
         """
         key_name = event.key.name
         self._pan_keys_held.discard(key_name)
-        if key_name == 'Control':
-            self._ctrl_held = False
-        if key_name == 'Alt':
-            self._alt_held = False
-        if key_name == 'Shift':
-            self._shift_held = False
+        attr = self._MODIFIER_ATTRS.get(key_name)
+        if attr is not None:
+            setattr(self, attr, False)
 
     def _apply_keyboard_pan(self) -> None:
         """Apply smooth continuous panning and time scrubbing from held keys.
@@ -604,9 +603,9 @@ class RenderEngine:
         n = len(self._data.particle_ids)
         if self._raw_radii is not None:
             compressed = np.cbrt(self._raw_radii)
-            min_c = compressed[compressed > 0].min() if np.any(compressed > 0) else 0.0
-            if min_c > 0:
-                return (compressed / min_c * D.RELATIVE_SIZE_MIN_PX).astype(np.float32)
+            positive = compressed[compressed > 0]
+            if positive.size:
+                return (compressed / positive.min() * D.RELATIVE_SIZE_MIN_PX).astype(np.float32)
         return np.full(n, D.DEFAULT_SIZE_PX, dtype=np.float32)
 
     def _compute_absolute_base_sizes(self) -> np.ndarray:
@@ -1019,6 +1018,12 @@ class RenderEngine:
     # Star field
     # ------------------------------------------------------------------
 
+    def _push_star_data(self, visual) -> None:
+        visual.set_data(
+            pos=self._star_positions, face_color=self._star_base_colors,
+            size=self._star_base_sizes, edge_width=0,
+        )
+
     def _update_stars(self) -> None:
         """Update star field positions on the fixed shell.
 
@@ -1026,15 +1031,9 @@ class RenderEngine:
         """
         np.multiply(self._star_directions, self._star_min_shell_radius,
                     out=self._star_positions)
-        self._star_visual.set_data(
-            pos=self._star_positions, face_color=self._star_base_colors,
-            size=self._star_base_sizes, edge_width=0,
-        )
+        self._push_star_data(self._star_visual)
         if self._subview_star_visual is not None:
-            self._subview_star_visual.set_data(
-                pos=self._star_positions, face_color=self._star_base_colors,
-                size=self._star_base_sizes, edge_width=0,
-            )
+            self._push_star_data(self._subview_star_visual)
 
     # ------------------------------------------------------------------
     # Frame update
@@ -1433,15 +1432,8 @@ class RenderEngine:
                 self._generate_star_field()
             np.multiply(self._star_directions, self._star_min_shell_radius,
                         out=self._star_positions)
-            self._star_visual = scene.Markers(
-                parent=self._view.scene,
-            )
-            self._star_visual.set_data(
-                pos=self._star_positions,
-                face_color=self._star_base_colors,
-                size=self._star_base_sizes,
-                edge_width=0,
-            )
+            self._star_visual = scene.Markers(parent=self._view.scene)
+            self._push_star_data(self._star_visual)
             self._star_visual.order = -10
         if self._star_visual is not None:
             self._star_visual.visible = enabled
@@ -1451,15 +1443,8 @@ class RenderEngine:
         # the sub-view was built without them.
         if self._subview is not None:
             if enabled and self._subview_star_visual is None and self._star_positions is not None:
-                self._subview_star_visual = scene.Markers(
-                    parent=self._subview.scene,
-                )
-                self._subview_star_visual.set_data(
-                    pos=self._star_positions,
-                    face_color=self._star_base_colors,
-                    size=self._star_base_sizes,
-                    edge_width=0,
-                )
+                self._subview_star_visual = scene.Markers(parent=self._subview.scene)
+                self._push_star_data(self._subview_star_visual)
                 self._subview_star_visual.order = -10
             if self._subview_star_visual is not None:
                 self._subview_star_visual.visible = enabled
@@ -1485,19 +1470,9 @@ class RenderEngine:
         self._star_count = max(100, int(count))
         self._generate_star_field()
         if self._star_visual is not None:
-            self._star_visual.set_data(
-                pos=self._star_positions,
-                face_color=self._star_base_colors,
-                size=self._star_base_sizes,
-                edge_width=0,
-            )
+            self._push_star_data(self._star_visual)
         if self._subview_star_visual is not None:
-            self._subview_star_visual.set_data(
-                pos=self._star_positions,
-                face_color=self._star_base_colors,
-                size=self._star_base_sizes,
-                edge_width=0,
-            )
+            self._push_star_data(self._subview_star_visual)
 
     def set_camera_controller(self, controller) -> None:
         """Attach a CameraController and initialize its framing.
@@ -1607,15 +1582,8 @@ class RenderEngine:
 
         # Star field for the sub-view (same data, own visual)
         if self._stars_enabled and self._star_positions is not None:
-            self._subview_star_visual = scene.Markers(
-                parent=self._subview.scene,
-            )
-            self._subview_star_visual.set_data(
-                pos=self._star_positions,
-                face_color=self._star_base_colors,
-                size=self._star_base_sizes,
-                edge_width=0,
-            )
+            self._subview_star_visual = scene.Markers(parent=self._subview.scene)
+            self._push_star_data(self._subview_star_visual)
             self._subview_star_visual.order = -10
 
         # Defer framing to the first _update_frame call so the GUI
