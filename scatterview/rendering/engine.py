@@ -307,10 +307,7 @@ class RenderEngine:
         self._trail_ei = np.full(n, -1, dtype=np.int64)
         self._trail_prev_time = -np.inf
 
-        # Trail alpha gradient: maps time fraction (0=oldest, 1=newest) to
-        # opacity via a quadratic curve (t**2).  The tail fades off
-        # aggressively so only the most recent motion reads strongly.
-        self._alpha_lut = np.linspace(0, 1, 1024, dtype=np.float32) ** 2
+        self._alpha_lut = np.linspace(0.05, 1, 1024, dtype=np.float32)
 
         self._build_visuals()
 
