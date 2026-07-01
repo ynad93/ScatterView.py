@@ -1722,6 +1722,7 @@ class RenderEngine:
         progress_callback: callable | None = None,
         codec: str = "libx264",
         codec_options: dict | None = None,
+        pix_fmt: str = "yuv444p",
     ) -> None:
         """Render the simulation to a video file.
 
@@ -1740,6 +1741,10 @@ class RenderEngine:
                 If it raises InterruptedError, rendering is cancelled.
             codec: ffmpeg codec name, e.g. "libx264", "h264_nvenc", "hevc_nvenc".
             codec_options: ffmpeg stream options dict (preset, crf/cq, rc, ...).
+            pix_fmt: encoder pixel format. "yuv444p" preserves full chroma
+                (best fidelity); "yuv420p" uses 4:2:0 subsampling, which is
+                required for playback in PowerPoint / Windows Media Foundation
+                and most hardware players.
         """
         import av
         import queue
@@ -1780,7 +1785,7 @@ class RenderEngine:
             # draws.  (An earlier version used planar ``gbrp`` to skip
             # the RGB→YUV matrix entirely, but libx264 builds without
             # 4:4:4 profile support reject it at codec_open.)
-            s.pix_fmt = "yuv444p"
+            s.pix_fmt = pix_fmt
             cc = s.codec_context
             cc.color_range = av.video.reformatter.ColorRange.JPEG
             cc.colorspace = av.video.reformatter.Colorspace.ITU709

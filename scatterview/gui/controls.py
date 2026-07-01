@@ -1255,6 +1255,28 @@ class ControlPanel:
         row.addWidget(self._quality_combo)
         section.addLayout(row)
 
+        # Pixel format selector: maps display label -> ffmpeg pix_fmt.
+        # 4:2:0 is required for PowerPoint / Windows Media Foundation and
+        # most hardware players; 4:4:4 keeps full chroma for best fidelity.
+        row = QtWidgets.QHBoxLayout()
+        row.addWidget(QtWidgets.QLabel("Pixel format"))
+        self._pixfmt_combo = QtWidgets.QComboBox()
+        self._pixfmt_map = {
+            "yuv444p (high quality)": "yuv444p",
+            "yuv420p (compatible)": "yuv420p",
+        }
+        for label in self._pixfmt_map:
+            self._pixfmt_combo.addItem(label)
+        self._pixfmt_combo.setCurrentText("yuv444p (high quality)")
+        self._pixfmt_combo.setToolTip(
+            "Chroma format of the encoded video. yuv420p (4:2:0) plays in\n"
+            "PowerPoint, Windows Media Foundation and most hardware players.\n"
+            "yuv444p (4:4:4) keeps full color detail but many players,\n"
+            "including PowerPoint, cannot decode it."
+        )
+        row.addWidget(self._pixfmt_combo)
+        section.addLayout(row)
+
         self._record_btn = QtWidgets.QPushButton("Record Video (MP4)")
         self._record_btn.clicked.connect(self._on_record)
         section.addWidget(self._record_btn)
@@ -1310,13 +1332,14 @@ class ControlPanel:
         codec_options = self._resolve_codec_options(
             codec, self._quality_combo.currentText(),
         )
+        pix_fmt = self._pixfmt_map[self._pixfmt_combo.currentText()]
 
         try:
             self._engine.render_video(
                 filepath, duration=duration, fps=fps, size=size,
                 t_start=t_start, t_end=t_end,
                 progress_callback=on_progress,
-                codec=codec, codec_options=codec_options,
+                codec=codec, codec_options=codec_options, pix_fmt=pix_fmt,
             )
         except InterruptedError:
             pass
@@ -1329,13 +1352,13 @@ class ControlPanel:
         """Map (codec, quality level) to ffmpeg stream options."""
         if codec == "libx264":
             presets = {"Fast": "veryfast", "Balanced": "fast", "Quality": "medium"}
-            crfs = {"Fast": "23", "Balanced": "20", "Quality": "18"}
+            crfs = {"Fast": "29", "Balanced": "26", "Quality": "23"}
             return {"preset": presets[quality], "crf": crfs[quality]}
         if codec in ("h264_nvenc", "hevc_nvenc"):
             # NVENC presets: p1 = fastest, p7 = slowest/best quality.
             nv_presets = {"Fast": "p2", "Balanced": "p4", "Quality": "p6"}
-            cqs_h264 = {"Fast": "26", "Balanced": "23", "Quality": "19"}
-            cqs_hevc = {"Fast": "28", "Balanced": "25", "Quality": "21"}
+            cqs_h264 = {"Fast": "32", "Balanced": "29", "Quality": "26"}
+            cqs_hevc = {"Fast": "34", "Balanced": "31", "Quality": "28"}
             cqs = cqs_hevc if codec == "hevc_nvenc" else cqs_h264
             return {"preset": nv_presets[quality], "rc": "vbr", "cq": cqs[quality]}
         return {}
